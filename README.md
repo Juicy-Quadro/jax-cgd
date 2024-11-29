@@ -5,5 +5,5 @@ A simple and memory-efficient implementation of competitive gradient descent (CG
 You can install this package with `pip`:
 
 ```
-pip install jax_cgd
+pip install jax-cgd
 ```
