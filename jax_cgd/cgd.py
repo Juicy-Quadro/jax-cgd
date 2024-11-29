@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
 from jax import grad, jit
-import utils
-import solvers
+from . import utils
+from . import solvers
 # import time
 import jax.lax as lax
 from functools import partial
