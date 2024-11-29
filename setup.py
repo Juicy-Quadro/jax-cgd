@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='jax_cgd', 
-    version='0.1.0', 
+    version='0.1.4', 
     packages=find_packages(include=['jax_cgd', 'jax_cgd.*']), 
     install_requires=[ 
         'jax>=0.4.0',
