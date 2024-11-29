@@ -5,7 +5,6 @@ from jax import grad, random, vmap, jit, value_and_grad
 from jax.scipy.sparse.linalg import gmres, cg  # Use conjugate gradient solver
 from functools import partial
 jax.config.update("jax_enable_x64", True)
-jcgd.utils.params_arr
 
 def init_weights_dict(layer_sizes, key, method="xavier_uniform"):
     keys = random.split(key, len(layer_sizes) - 1)
