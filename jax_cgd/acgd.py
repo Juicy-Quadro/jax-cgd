@@ -124,8 +124,8 @@ def step_func(x_params, y_params, x_metadata, y_metadata, vx, vy, timestep, eta,
     dfdy_val = lax.stop_gradient(jax.grad(f, argnums=1)(x_params, y_params))
 
     # Update second moment estimates
-    vx = beta * vx + (1 - beta) * dfdx_val
-    vy = beta * vy + (1 - beta) * dfdy_val
+    vx = beta * vx + (1 - beta) * dfdx_val ** 2
+    vy = beta * vy + (1 - beta) * dfdy_val ** 2
 
     # Compute bias-corrected learning rates
     bias_correction = 1 - beta**timestep
