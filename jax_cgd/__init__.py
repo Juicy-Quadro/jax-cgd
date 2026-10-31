@@ -1,4 +1,4 @@
 from .acgd import ACGD
 from .cgd import BCGD
-from . import solvers
-from . import utils
+from . import solvers, utils
+from .games import BilinearGame

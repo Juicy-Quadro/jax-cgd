@@ -1,4 +1,4 @@
-"""Utilities for flattened parameters and matrix-free mixed Hessians."""
+"""Utilities for flattened model parameters and matrix-free mixed Hessians."""
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -7,7 +7,7 @@ from jax import lax
 
 def params_to_array(params_dict):
     if not params_dict:
-        raise ValueError("Parameter dictionary must not be empty")
+        raise ValueError('Parameter dictionary must not be empty')
     params_list = []
     metadata = []
     for key, value in params_dict.items():
@@ -17,37 +17,31 @@ def params_to_array(params_dict):
 
 
 def params_to_dict(params_arr, metadata):
-    result = {}
+    params_dict = {}
     offset = 0
     for key, shape in metadata:
         size = int(np.prod(shape))
-        result[key] = lax.dynamic_slice(params_arr, (offset,), (size,)).reshape(shape)
+        params_dict[key] = lax.dynamic_slice(params_arr, (offset,), (size,)).reshape(shape)
         offset += size
-    return result
+    return params_dict
 
 
 def H_xy_vy(h, x, y, vy):
-    return jax.jvp(
-        lambda yy: jax.grad(h, argnums=0)(x, yy), (y,), (vy,)
-    )[1]
+    return jax.jvp(lambda yy: jax.grad(h, argnums=0)(x, yy), (y,), (vy,))[1]
 
 
 def H_yx_vx(h, x, y, vx):
-    return jax.jvp(
-        lambda xx: jax.grad(h, argnums=1)(xx, y), (x,), (vx,)
-    )[1]
+    return jax.jvp(lambda xx: jax.grad(h, argnums=1)(xx, y), (x,), (vx,))[1]
 
 
 def cross_hessian_matvecs(f, x, y):
-    """Cache the mixed-Hessian linearization once per optimizer step.
+    """Linearize once and reuse H_xy*v and its exact transpose H_yx*v.
 
-    Reuse its exact transpose, avoiding two separately traced nested
-    autodiff expressions in every Krylov iteration. Cached primal
-    intermediates can increase memory usage on large neural networks.
+    Avoid retracing two nested autodiff expressions on every Krylov iteration.
+    Like any `linearize`, this caches primal intermediates: for very large
+    networks, compare memory consumption to the uncached HVP approach.
     """
-    _, hxy = jax.linearize(
-        lambda yy: jax.grad(f, argnums=0)(x, yy), y
-    )
+    _, hxy = jax.linearize(lambda yy: jax.grad(f, argnums=0)(x, yy), y)
     hxy_transpose = jax.linear_transpose(hxy, y)
 
     def hyx(vx):
@@ -57,8 +51,10 @@ def cross_hessian_matvecs(f, x, y):
 
 
 class Operater:
-    """SPD zero-sum CGD Schur complement; historical spelling retained."""
+    """Symmetric positive-definite zero-sum CGD Schur complement.
 
+    Keep the historical spelling/API for backwards compatibility.
+    """
     def __init__(self, f, y_params_arr, x_params_arr, eta_y, eta_x):
         self.f = f
         self.y_params_arr = y_params_arr
@@ -74,3 +70,20 @@ class Operater:
 
     def as_function(self):
         return lambda v: self @ v
+
+
+def linearize_game(f, x, y):
+    """Joint gradients + H_xy linearization in one primal evaluation.
+
+    The y-gradient is auxiliary: do not build the unused H_yy tangent.
+    Specialized separable games can supply their exact linearization.
+    """
+    if hasattr(f, 'linearize'):
+        return f.linearize(x, y)
+
+    def grad_x_aux(yy):
+        return jax.grad(f, argnums=(0, 1))(x, yy)
+
+    gx, hxy, gy = jax.linearize(grad_x_aux, y, has_aux=True)
+    transpose = jax.linear_transpose(hxy, y)
+    return gx, gy, hxy, lambda v: transpose(v)[0]
