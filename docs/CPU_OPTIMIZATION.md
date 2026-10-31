@@ -1,5 +1,10 @@
 # CPU optimization: verified residual reuse and exact Flax derivatives
 
+> **2.0.0rc1 update:** These optimization notes describe the pinned pre-RC implementation.
+> Current failure handling, PyTree support and checkpoint contracts are in
+> [RELEASE_CANDIDATE.md](RELEASE_CANDIDATE.md). Unsafe updates are now rejected by default;
+> attempts (including rejected work) are counted separately from accepted updates.
+
 ## Scope
 
 The CPU optimization has two separate parts. The library change applies to
@@ -67,5 +72,5 @@ Generic-core results and pre-counting comparisons must also be reported;
 example-specific speedups are not claimed for arbitrary objectives.
 
 No long-run convergence, GPU speed, GPU memory, preconditioner, lower-precision
-or relaxed-tolerance speedup is claimed. Inexact updates remain applied as in
-the prior API: scientific users must inspect failed_solves_total.
+or relaxed-tolerance speedup is claimed. The RC now rejects unsafe updates
+by default; this additional safety work needs its own performance measurement.

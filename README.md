@@ -1,4 +1,4 @@
-# jax-cgd
+# jax-cgd — 2.0.0rc1 (unpublished candidate)
 
 Competitive gradient descent (BCGD) and adaptive CGD for real differentiable
 zero-sum games, with matrix-free JAX linear solves and Flax PINN examples.
@@ -7,11 +7,11 @@ Original CGD: https://arxiv.org/abs/1905.12103 ; ACGD: https://arxiv.org/abs/191
 ## Install current source
 
 ```bash
-git clone https://github.com/Juicy-Quadro/jax-cgd.git
+git clone --branch release/stability-rc https://github.com/Juicy-Quadro/jax-cgd.git
 cd jax-cgd
 python -m pip install -e .
 # Optional Flax examples and tests:
-python -m pip install -r requirements-examples.txt
+python -m pip install -e ".[examples,test]"
 JAX_ENABLE_X64=1 python -m pytest -q
 ```
 
@@ -23,12 +23,13 @@ publish a new PyPI release. Use the Git source for the counted/optimized version
 ```python
 from jax_cgd import ACGD, solvers
 
-# x, y: flat dictionaries of real floating arrays; game(x, y): scalar.
+# x, y: real homogeneous float32/float64 parameter PyTrees; game(x, y): scalar.
 opt = ACGD(x, y, game, lr=1e-3,
            solver=solvers.CG(tol=1e-8, atol=0., max_iter=200))
 opt.step_many(20)  # compiled chunk; no trajectory is retained
 stats = opt.get_stats()  # JAX device arrays, None before the first update
-# Check stats["failed_solves_total"] before trusting the run.
+# Default rejects an unsafe update and raises SolverFailure.
+# The successful prefix is retained. Inspect stats before retrying.
 ```
 
 For standalone linear systems, use `solver.solve_with_stats(A, b, x0)` for
@@ -58,7 +59,21 @@ See [CPU design and benchmark protocol](docs/CPU_OPTIMIZATION.md).
   explicitly set precision/tolerance, as above. Full-block form requires GMRES.
 - No promise of whole-optimizer meta-gradients. Linear-solver implicit AD is
   separately tested; inherited optimizer stop-gradient behavior is retained.
-- Flat dictionaries are supported; Flax examples flatten/unflatten their
-  nested variables explicitly. Failed solves are reported, not skipped.
+- Nested registered PyTrees are supported; flat-dict ordering is retained.
+  Unsafe proposals are rejected by default; see the migration notes.
 - GPU performance, peak memory and full-paper accuracy are not established by
   the short CPU acceptance benchmarks.
+
+## Stability RC
+
+The candidate adds explicit failure policy, immutable state transitions, nested
+PyTrees, and versioned non-pickle checkpoints. See
+[RC contracts and validation scope](docs/RELEASE_CANDIDATE.md) and
+[breaking changes](CHANGELOG.md). This is not a PyPI publication or a guarantee
+of GPU validation, whole-optimizer meta-gradients or full CPINN convergence.
+
+```python
+opt.save_checkpoint("results/optimizer.npz")
+# Recreate matching objective, configuration and parameter layout first:
+restored.load_checkpoint("results/optimizer.npz")
+```

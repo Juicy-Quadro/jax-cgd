@@ -5,25 +5,66 @@ import jax.numpy as jnp
 from jax import lax
 
 
+class ParameterLayout:
+    """Hashable static layout for nested registered parameter PyTrees."""
+    def __init__(self, treedef, shapes):
+        self.treedef, self.shapes = treedef, tuple(shapes)
+
+    def __hash__(self):
+        return hash((self.treedef, self.shapes))
+
+    def __eq__(self, other):
+        return (isinstance(other, ParameterLayout) and
+                self.treedef == other.treedef and self.shapes == other.shapes)
+
+    def __repr__(self):
+        return f'ParameterLayout({self.treedef!r}, {self.shapes!r})'
+
+
 def params_to_array(params_dict):
-    if not params_dict:
-        raise ValueError('Parameter dictionary must not be empty')
-    params_list = []
-    metadata = []
-    for key, value in params_dict.items():
-        params_list.append(jnp.ravel(value))
-        metadata.append((key, value.shape))
-    return jnp.concatenate(params_list), tuple(metadata)
+    """Flatten real homogeneous float32/64 parameters, preserving flat-dict order.
+
+    Construction is a host-side validation boundary (not a traced operation).
+    Nested registered PyTrees are accepted; empty/nonfinite/integer/mixed-dtype
+    parameters are rejected instead of silently promoted or truncated.
+    """
+    flat_dict = type(params_dict) is dict and all(
+        hasattr(v, 'shape') for v in params_dict.values())
+    if flat_dict:
+        leaves = list(params_dict.values())
+        metadata = tuple((k, tuple(v.shape)) for k, v in params_dict.items())
+    else:
+        leaves, treedef = jax.tree_util.tree_flatten(params_dict)
+        metadata = ParameterLayout(treedef, [np.shape(v) for v in leaves])
+    if not leaves or any(np.size(v) == 0 for v in leaves):
+        raise ValueError('Parameter tree and all leaves must be nonempty')
+    host = [np.asarray(v) for v in leaves]
+    dtypes = {v.dtype for v in host}
+    if len(dtypes) != 1 or next(iter(dtypes)) not in (np.dtype('float32'), np.dtype('float64')):
+        raise TypeError('Parameters require homogeneous real float32 or float64 leaves')
+    if not all(np.isfinite(v).all() for v in host):
+        raise ValueError('Initial parameters must be finite')
+    arrays = [jnp.asarray(v) for v in leaves]
+    if arrays[0].dtype != host[0].dtype:
+        raise ValueError('Parameter dtype was truncated; enable JAX_ENABLE_X64 for float64')
+    return jnp.concatenate([jnp.ravel(v) for v in arrays]), metadata
 
 
 def params_to_dict(params_arr, metadata):
-    params_dict = {}
+    """Restore the original parameter tree (historical function name retained)."""
+    nested = isinstance(metadata, ParameterLayout)
+    entries = enumerate(metadata.shapes) if nested else metadata
+    result = [] if nested else {}
     offset = 0
-    for key, shape in metadata:
+    for key, shape in entries:
         size = int(np.prod(shape))
-        params_dict[key] = lax.dynamic_slice(params_arr, (offset,), (size,)).reshape(shape)
+        value = lax.dynamic_slice(params_arr, (offset,), (size,)).reshape(shape)
+        if nested:
+            result.append(value)
+        else:
+            result[key] = value
         offset += size
-    return params_dict
+    return metadata.treedef.unflatten(result) if nested else result
 
 
 def H_xy_vy(h, x, y, vy):

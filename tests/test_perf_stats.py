@@ -71,7 +71,7 @@ def test_custom_solver_reports_unknown_counts():
 
 def test_stats_count_nonconvergence():
     opt=BCGD({'w':jnp.ones(3)},{'w':jnp.array([.1,1.,10.])},f,
-              lr=1.,solver=solvers.CG(tol=1e-14,max_iter=0))
+              lr=1.,solver=solvers.CG(tol=1e-14,max_iter=0),on_failure="accept_inexact")
     opt.step_many(2)
     assert int(opt.get_stats()['failed_solves_total'])==2
     assert not bool(opt.get_stats()['converged'])
