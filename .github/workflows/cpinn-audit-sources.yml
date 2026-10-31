@@ -1,0 +1,29 @@
+name: Freeze official CPINN audit sources
+on:
+  push:
+    branches: [audit/cpinn-official-parity]
+    paths: [.github/workflows/cpinn-audit-sources.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download immutable reference source and pinned dependency distributions
+        run: |
+          mkdir -p sources
+          curl -fsSL --retry 3 https://api.github.com/repos/comp-physics/CPINN/tarball/ef0d6a4504e5a5fd69e3d0583f4c821b33436c2d -o sources/cpinn-ef0d6a4.tar.gz
+          python -m pip download --no-deps 'CGDs==0.4.5' 'pyDOE==0.3.8' -d sources
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/devzhk/cgds-package/master/src/CGDs/gmres_acgd.py -o sources/current-master-gmres_acgd.py
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/devzhk/cgds-package/master/src/CGDs/gmres_torch.py -o sources/current-master-gmres_torch.py
+          sha256sum sources/* > sources/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpinn-pinned-audit-sources
+          path: sources/
+          if-no-files-found: error
