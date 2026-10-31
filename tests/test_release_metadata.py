@@ -19,3 +19,13 @@ def test_installed_metadata_matches_runtime():
     req=metadata.requires('jax-cgd')
     assert any(r.startswith('jax<0.13,>=0.9.0') or r.startswith('jax>=0.9.0,<0.13') for r in req)
     assert all('extra ==' in r for r in req if r.startswith(('flax','optax')))
+
+
+def test_installed_license_is_utf8():
+    distribution = metadata.distribution('jax-cgd')
+    licenses = [entry for entry in distribution.files
+                if str(entry).endswith('.dist-info/licenses/LICENSE') or str(entry) == 'LICENSE']
+    assert len(licenses) == 1, 'Built distribution must include the MIT license'
+    text = distribution.locate_file(licenses[0]).read_text(encoding='utf-8')
+    assert 'Copyright (c) 2024 Yiming Lu' in text
+    assert 'Permission is hereby granted' in text
