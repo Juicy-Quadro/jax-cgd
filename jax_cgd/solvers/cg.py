@@ -20,5 +20,17 @@ class CG:
                              maxiter=self.max_iter, method='cg')
 
 
+    def _solve_for_update(self, limap, b, x0=None):
+        """Internal: optimizer MUST finalize the true residual before reporting.
+
+        Keeps the implicit linear-solve derivative. The Schur optimizer shares
+        one mixed product between final verification and reconstruction.
+        Public solve_with_stats always verifies the residual itself.
+        """
+        return counted_solve(limap, b, x0, tol=self.tol, atol=self.atol,
+                             maxiter=self.max_iter, method='cg',
+                             _defer_cg_residual=True)
+
+
 def solve_jit(limap, b, x0, tol, atol, max_iter):
     return cg(limap, b, x0=x0, tol=tol, atol=atol, maxiter=max_iter)

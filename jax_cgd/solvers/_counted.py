@@ -30,7 +30,7 @@ def _initial(A, b, x0):
     return x0, b - A(x0), jnp.int32(1)
 
 
-def _cg(A, b, x0, tol, atol, maxiter):
+def _cg(A, b, x0, tol, atol, maxiter, *, verify=True):
     x, r, initial_mv = _initial(A, b, x0)
     bnorm = jnp.linalg.norm(b)
     target = jnp.maximum(tol * bnorm, atol)
@@ -55,8 +55,9 @@ def _cg(A, b, x0, tol, atol, maxiter):
 
     x, r, _, _, k, failed = lax.while_loop(cond, body, initial)
     # Check true residual; charge it. The initial residual is exact at k=0.
-    r = lax.cond(k > 0, lambda: b - A(x), lambda: r)
-    mv = initial_mv + k + (k > 0).astype(jnp.int32)
+    if verify:
+        r = lax.cond(k > 0, lambda: b - A(x), lambda: r)
+    mv = initial_mv + k + ((k > 0).astype(jnp.int32) if verify else 0)
     return x, _finish(k, mv, jnp.int32(0), r, bnorm, target, failed)
 
 
@@ -132,7 +133,8 @@ def _gmres(A, b, x0, tol, atol, maxiter, restart):
     return x, _finish(k, mv, cycles, r, bnorm, target, failed)
 
 
-def counted_solve(A, b, x0, *, tol, atol, maxiter, method, restart=20):
+def counted_solve(A, b, x0, *, tol, atol, maxiter, method, restart=20,
+                  _defer_cg_residual=False):
     b = jnp.asarray(b)
     if b.ndim != 1 or b.size == 0 or not jnp.issubdtype(b.dtype, jnp.floating):
         raise ValueError('solve_with_stats requires a nonempty real floating vector')
@@ -145,7 +147,7 @@ def counted_solve(A, b, x0, *, tol, atol, maxiter, method, restart=20):
 
     def solve(matvec, rhs, guess):
         if method == 'cg':
-            return _cg(matvec, rhs, guess, tol, atol, limit)
+            return _cg(matvec, rhs, guess, tol, atol, limit, verify=not _defer_cg_residual)
         return _gmres(matvec, rhs, guess, tol, atol, limit, restart)
 
     return lax.custom_linear_solve(

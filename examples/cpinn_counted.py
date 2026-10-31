@@ -14,13 +14,14 @@ import jax.numpy as jnp
 from flax.traverse_util import unflatten_dict
 from jax_cgd import ACGD, BCGD, solvers
 from jax_cgd.games import BilinearGame
+from examples.spatial_jets import JetMLP
 from examples.cpinn_flax import (
     MLP, create_problem, poisson_residual, burgers_residual, exact_poisson,
     burgers_boundary_value, relative_error_poisson, relative_error_burgers,
 )
 
 
-def make_problem(problem, n_pde, n_bc, width, layers, seed):
+def make_problem(problem, n_pde, n_bc, width, layers, seed, *, spatial_jet=False):
     """Same points/Flax variables as the reference, with an exact factored game."""
     if min(n_pde,n_bc,width,layers) < 1:
         raise ValueError('sample counts, width and layers must be positive')
@@ -35,8 +36,17 @@ def make_problem(problem, n_pde, n_bc, width, layers, seed):
     npde,nbc=inside.shape[0],boundary.shape[0]
     pi,bi=(1,0) if burgers else (0,1)
 
+    primal = JetMLP(layers, width, activation="tanh", burgers_input=burgers)
+
     def primal_features(p):
-        return jnp.concatenate((residual(pred,p,inside)/jnp.sqrt(float(npde)),
+        if spatial_jet:
+            u, du, lap = primal.apply(unflatten_dict(p), inside,
+                second_axes=(0,) if burgers else (0,1), method=primal.spatial_jet)
+            res = (du[:,1] + u*du[:,0] - (0.01/jnp.pi)*lap if burgers
+                   else lap + 2*exact_poisson(inside))
+        else:
+            res = residual(pred,p,inside)
+        return jnp.concatenate((res/jnp.sqrt(float(npde)),
                                 (pred(p,boundary)[:,0]-target)/jnp.sqrt(float(nbc))))
 
     def dual_features(d):
@@ -55,6 +65,7 @@ def main():
     p.add_argument('--formulation',choices=['schur','block'],default='schur')
     p.add_argument('--solver',choices=['cg','gmres'],default=None)
     p.add_argument('--generic',action='store_true',help='Disable exact game factorization')
+    p.add_argument('--autodiff',action='store_true',help='Use the reference nested-autodiff spatial derivatives instead of exact MLP jets')
     p.add_argument('--steps',type=int,default=100)
     p.add_argument('--report-every',type=int,default=20)
     p.add_argument('--n-pde',type=int,default=None)
@@ -80,7 +91,8 @@ def main():
         a.maxiter=20
     if a.steps < 0 or a.report_every <= 0:
         p.error('steps must be nonnegative and report-every positive')
-    pv,dv,pred,generic,game,loss=make_problem(a.problem,a.n_pde,a.n_bc,a.width,a.layers,a.seed)
+    pv,dv,pred,generic,game,loss=make_problem(a.problem,a.n_pde,a.n_bc,a.width,a.layers,a.seed,
+        spatial_jet=not a.autodiff and not a.generic)
     game=generic if a.generic else game
     loss=jax.jit(loss)
     if a.mode=='adam':
@@ -116,6 +128,7 @@ def main():
             row.update({k:v.item() for k,v in jax.device_get(opt.get_stats()).items()})
         else:row.update(paper_proxy_total=0,outer_steps=0,krylov_iterations_total=0)
         row['wall_s_including_diagnostics']=time.perf_counter()-begin
+        row['spatial_derivatives']='autodiff' if a.autodiff or a.generic or a.mode=='adam' else 'exact_tanh_jet'
         row['work_axis']='paper_nominal_not_measured_AD_passes'
         row['formulation']=a.formulation if a.mode!='adam' else 'pinn'
         rows.append(row);print(json.dumps(row),flush=True)

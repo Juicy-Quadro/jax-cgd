@@ -27,7 +27,8 @@ def test_step_many_matches_repeated_steps_and_accounting(cls):
     assert int(st['outer_steps'])==5 and b.timestep==5
     assert int(st['krylov_iterations_total'])==sum(ks)
     assert int(st['matvecs_total'])==sum(mvs)
-    assert int(st['mixed_products_total'])==2*(sum(mvs)+5)
+    assert int(st['mixed_products_nominal_total'])==2*(sum(mvs)+5)
+    assert int(st['mixed_products_total'])+int(st['mixed_products_reused_total'])==2*(sum(mvs)+5)
     assert int(st['paper_proxy_total'])==2*5+2*sum(ks)
     assert bool(st['counts_available'])
 
