@@ -15,7 +15,7 @@ discriminator ReLU (4 hidden layers, width 50), 2 outputs.
 
 Burgers: `u_t + u u_x - (0.01/pi) u_xx = 0`, x in [-1,1], t in [0,1],
 IC `u(0,x)=-sin(pi x)`, BC `u(t,+/-1)=0`. Uses 10,000 LHS
-interior points plus boundary points and N_u=100 selected initial/boundary
+interior points plus all 456 initial/boundary candidates and N_u=100 selected initial/boundary
 points; each network has 8 hidden layers of 60 neurons. Relative error
 requires the **original paper's** `burgers_shock.mat` reference.
 
