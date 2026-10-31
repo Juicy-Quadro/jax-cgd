@@ -22,11 +22,13 @@ def direct_step(x, y, ex, ey):
     gx, gy = jax.grad(f, (0, 1))(x, y)
     hxy = jax.jacfwd(jax.grad(f, 0), 1)(x, y)
     hyx = jax.jacfwd(jax.grad(f, 1), 0)(x, y)
+    ex_vec = jnp.broadcast_to(ex, x.shape)
+    ey_vec = jnp.broadcast_to(ey, y.shape)
     K = jnp.block([
-        [jnp.eye(x.size), ex * hxy],
-        [-ey * hyx, jnp.eye(y.size)],
+        [jnp.eye(x.size), ex_vec[:, None] * hxy],
+        [-ey_vec[:, None] * hyx, jnp.eye(y.size)],
     ])
-    delta = jnp.linalg.solve(K, jnp.concatenate([-ex * gx, ey * gy]))
+    delta = jnp.linalg.solve(K, jnp.concatenate([-ex_vec * gx, ey_vec * gy]))
     return x + delta[:x.size], y + delta[x.size:]
 
 
@@ -60,8 +62,8 @@ def test_acgd_bias_and_3_steps():
         vx = 0.7 * vx + 0.3 * gx ** 2
         vy = 0.7 * vy + 0.3 * gy ** 2
         bias = 1 - 0.7 ** t
-        ex = 0.04 * jnp.sqrt(bias) / (jnp.linalg.norm(vx) + 1e-3)
-        ey = 0.04 * jnp.sqrt(bias) / (jnp.linalg.norm(vy) + 1e-3)
+        ex = 0.04 * jnp.sqrt(bias) / (jnp.sqrt(vx) + 1e-3)
+        ey = 0.04 * jnp.sqrt(bias) / (jnp.sqrt(vy) + 1e-3)
         expected_x, expected_y = direct_step(expected_x, expected_y, ex, ey)
         opt.step()
         np.testing.assert_allclose(opt.x_params, expected_x, rtol=3e-5, atol=3e-6)
