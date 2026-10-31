@@ -63,7 +63,7 @@ def test_zero_iterations_and_custom_cg_subclass_are_not_miscounted():
 def test_inexact_cg_still_reports_failure():
     opt=BCGD({'w':jnp.ones(3)},{'w':jnp.array([.1,1.,10.])},
              lambda a,b:jnp.sum(jnp.sin(a['w'])*b['w']**2),lr=1.,
-             solver=solvers.CG(tol=1e-14,atol=0,max_iter=1))
+             solver=solvers.CG(tol=1e-14,atol=0,max_iter=1),on_failure="accept_inexact")
     opt.step()
     assert not bool(opt.get_stats()['converged'])
     assert int(opt.get_stats()['failed_solves_total'])==1

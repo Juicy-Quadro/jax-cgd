@@ -7,9 +7,9 @@ from ._optimizer import OptimizerBase, advance
 
 class ACGD(OptimizerBase):
     def __init__(self,x_params_dict,y_params_dict,f_dict_input,
-                 lr=1e-3,beta=.9,eps=1e-3,solver=None,*,formulation="schur"):
+                 lr=1e-3,beta=.9,eps=1e-3,solver=None,*,formulation="schur",on_failure="raise"):
         self._init(x_params_dict,y_params_dict,f_dict_input,lr,solver,
-                   adaptive=True,beta=beta,eps=eps,formulation=formulation)
+                   adaptive=True,beta=beta,eps=eps,formulation=formulation,on_failure=on_failure)
 
 
 @partial(jax.jit,static_argnums=(2,3,7,8,9,10,12))

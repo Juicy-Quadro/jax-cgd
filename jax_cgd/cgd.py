@@ -7,8 +7,8 @@ from ._optimizer import OptimizerBase, advance
 
 
 class BCGD(OptimizerBase):
-    def __init__(self,x_params_dict,y_params_dict,f_dict_input,lr=1e-3,solver=None,*,formulation="schur"):
-        self._init(x_params_dict,y_params_dict,f_dict_input,lr,solver,adaptive=False,formulation=formulation)
+    def __init__(self,x_params_dict,y_params_dict,f_dict_input,lr=1e-3,solver=None,*,formulation="schur",on_failure="raise"):
+        self._init(x_params_dict,y_params_dict,f_dict_input,lr,solver,adaptive=False,formulation=formulation,on_failure=on_failure)
 
 
 @partial(jax.jit,static_argnums=(2,3,5,6,8))

@@ -1,3 +1,2 @@
-flax>=0.10.0
-optax>=0.2.0
-pytest>=8
+# Optional dependencies are declared once in pyproject.toml.
+-e .[examples,test]
