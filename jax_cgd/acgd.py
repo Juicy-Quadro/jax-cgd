@@ -48,10 +48,10 @@ def step_func(x_params, y_params, x_metadata, y_metadata, vx, vy, timestep,
     gx, gy = lax.stop_gradient(gx), lax.stop_gradient(gy)
     vx = beta * vx + (1 - beta) * gx ** 2
     vy = beta * vy + (1 - beta) * gy ** 2
-    # Keep the original scalar norm-based ACGD learning-rate convention.
+    # Elementwise RMS preconditioning as in reference GACGD (not a global norm).
     bias = 1 - beta ** (timestep + 1)
-    eta_x = eta * jnp.sqrt(bias) / (jnp.linalg.norm(vx) + eps)
-    eta_y = eta * jnp.sqrt(bias) / (jnp.linalg.norm(vy) + eps)
+    eta_x = eta * jnp.sqrt(bias) / (jnp.sqrt(vx) + eps)
+    eta_y = eta * jnp.sqrt(bias) / (jnp.sqrt(vy) + eps)
     operator = utils.Operater(f, y_params, x_params, eta_y, eta_x)
     scale = jnp.sqrt(eta_x)
     rhs = scale * (gx + operator.hxy(eta_y * gy))
