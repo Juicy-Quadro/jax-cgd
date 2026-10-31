@@ -40,7 +40,7 @@
       "tol": 1e-10,
       "reference_unique_P": 5301,
       "reference_unique_D": 7902,
-      "max_block_param_error": 4.147793219568835e-13,
+      "max_block_param_error": 4.147793219999585e-13,
       "max_schur_jet_param_error": 4.034181322332131e-11
     },
     {
