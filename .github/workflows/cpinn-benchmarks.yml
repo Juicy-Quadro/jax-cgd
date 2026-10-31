@@ -35,6 +35,10 @@ jobs:
         run: python examples/poisson.py --smoke --mode acgd --solver cg
       - name: Burgers CPINN ACGD smoke
         run: python examples/burgers.py --smoke --mode acgd --solver cg
+      - name: Burgers reference-grid relative L2 smoke
+        run: |
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/comp-physics/CPINN/main/Burger/burgers_shock.mat -o /tmp/burgers_shock.mat
+          python examples/burgers.py --smoke --mode acgd --solver cg --reference-mat /tmp/burgers_shock.mat
       - name: Small Poisson PINN Adam training curve
         run: |
           python examples/poisson.py --mode adam --steps 20 --n-pde 12 --n-bc 6 --width 6 --layers 1 --grid 16 --report-every 5
