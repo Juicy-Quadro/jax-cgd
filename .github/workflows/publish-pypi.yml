@@ -1,0 +1,166 @@
+name: Publish validated 2.0.0rc1 to PyPI
+
+# A one-release workflow: only the tested, hash-pinned RC artifacts can ship.
+# After adding the PyPI Trusted Publisher, re-run this workflow's failed jobs.
+on:
+  push:
+    branches: [release/stability-rc]
+    paths: [.github/workflows/publish-pypi.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-jax-cgd-2.0.0rc1
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'Juicy-Quadro/jax-cgd' && github.ref == 'refs/heads/release/stability-rc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      needed: ${{ steps.prepare.outputs.needed }}
+    steps:
+      - name: Verify the immutable source validation succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          url = 'https://api.github.com/repos/Juicy-Quadro/jax-cgd/actions/runs/41216185076'
+          request = urllib.request.Request(url, headers={
+              'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+              'Accept': 'application/vnd.github+json',
+          })
+          with urllib.request.urlopen(request, timeout=30) as response:
+              run = json.load(response)
+          assert run['repository']['full_name'] == 'Juicy-Quadro/jax-cgd'
+          assert run['head_sha'] == 'df67eb6c6309014b6c2752cfadd59a7483c181b2'
+          assert run['path'] == '.github/workflows/release-candidate.yml'
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          print('Verified successful RC validation run:', run['id'], run['head_sha'])
+          PY
+      - name: Download the exact previously tested distributions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: rc-distributions
+          run-id: 41216185076
+          repository: Juicy-Quadro/jax-cgd
+          github-token: ${{ github.token }}
+          path: verified-dist
+      - name: Verify hashes, metadata and existing PyPI inventory
+        id: prepare
+        run: |
+          python - <<'PY'
+          import email.parser, hashlib, json, os, pathlib, shutil, tarfile, urllib.error, urllib.request, zipfile
+          expected = {
+              'jax_cgd-2.0.0rc1-py3-none-any.whl': '4575d0fa535eff0f92a846f62952acfeaf4f0f92179e0078500af98888047719',
+              'jax_cgd-2.0.0rc1.tar.gz': '59c9e476a05a9d33d004410d74db7bd1da56fb40c037d3e6b3c0e610dfcafe1e',
+          }
+          source = pathlib.Path('verified-dist')
+          assert {p.name for p in source.iterdir()} == set(expected), 'Unexpected artifact files'
+          for name, digest in expected.items():
+              assert hashlib.sha256((source/name).read_bytes()).hexdigest() == digest, name
+              print('Verified SHA256:', name, digest)
+          with zipfile.ZipFile(source/'jax_cgd-2.0.0rc1-py3-none-any.whl') as wheel:
+              raw = wheel.read('jax_cgd-2.0.0rc1.dist-info/METADATA').decode('utf-8')
+          with tarfile.open(source/'jax_cgd-2.0.0rc1.tar.gz', 'r:gz') as sdist:
+              source_raw = sdist.extractfile('jax_cgd-2.0.0rc1/PKG-INFO').read().decode('utf-8')
+          for text in (raw, source_raw):
+              metadata = email.parser.Parser().parsestr(text)
+              assert metadata['Name'].lower().replace('_', '-') == 'jax-cgd'
+              assert metadata['Version'] == '2.0.0rc1'
+          url = 'https://pypi.org/pypi/jax-cgd/2.0.0rc1/json'
+          try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  published = json.load(response)['urls']
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+              published = []
+          seen = set()
+          for item in published:
+              name = item['filename']
+              assert name in expected, 'Unexpected existing distribution: ' + name
+              assert item['digests']['sha256'] == expected[name], 'Existing release hash mismatch'
+              assert not item.get('yanked'), 'Existing RC is yanked; owner review required'
+              assert name not in seen, 'Duplicate published filename'
+              seen.add(name)
+          upload = pathlib.Path('upload-dist')
+          upload.mkdir()
+          for name in sorted(set(expected) - seen):
+              shutil.copy2(source/name, upload/name)
+          needed = len(seen) != len(expected)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('needed=' + str(needed).lower() + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## jax-cgd 2.0.0rc1 publication\n')
+              summary.write('Source: `df67eb6c6309014b6c2752cfadd59a7483c181b2`; validated run `41216185076`.\n')
+              summary.write('Exact validated distributions; no rebuild or stable-version promotion.\n')
+              summary.write('Files still to publish: ' + str(len(expected) - len(seen)) + '.\n')
+          print('Files still to publish:', len(expected) - len(seen))
+          PY
+      - name: Stage only verified files not yet on PyPI
+        if: steps.prepare.outputs.needed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pypi-validated-2.0.0rc1
+          path: upload-dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: prepare
+    if: needs.prepare.outputs.needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/jax-cgd/2.0.0rc1/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # No checkout or build in the job that can acquire a PyPI identity token.
+      - name: Retrieve verified distributions from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pypi-validated-2.0.0rc1
+          path: dist
+      - name: Publish via PyPI Trusted Publishing (no stored API token)
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: 'false'
+          print-hash: 'true'
+      - name: Verify public PyPI file hashes after publication
+        run: |
+          python - <<'PY'
+          import json, time, urllib.error, urllib.request
+          expected = {
+              'jax_cgd-2.0.0rc1-py3-none-any.whl': '4575d0fa535eff0f92a846f62952acfeaf4f0f92179e0078500af98888047719',
+              'jax_cgd-2.0.0rc1.tar.gz': '59c9e476a05a9d33d004410d74db7bd1da56fb40c037d3e6b3c0e610dfcafe1e',
+          }
+          url = 'https://pypi.org/pypi/jax-cgd/2.0.0rc1/json'
+          for attempt in range(12):
+              try:
+                  with urllib.request.urlopen(url, timeout=30) as response:
+                      result = json.load(response)
+                  files = result['urls']
+                  hashes = {item['filename']: item['digests']['sha256'] for item in files}
+                  if hashes == expected and not any(item.get('yanked') for item in files):
+                      assert result['info']['version'] == '2.0.0rc1'
+                      print('PUBLICATION_VERIFIED: PyPI has both exact validated files.')
+                      break
+              except urllib.error.HTTPError as error:
+                  if error.code != 404:
+                      raise
+              time.sleep(5)
+          else:
+              raise RuntimeError('Upload did not produce a verifiable complete PyPI release')
+          PY
