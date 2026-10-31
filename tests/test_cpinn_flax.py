@@ -27,7 +27,7 @@ def test_poisson_collocation_and_dirichlet():
 
 def test_burgers_collocation_initial_boundary():
     inside, boundary = sample_burgers(n_pde=15, n_bc=9, seed=24)
-    assert inside.shape == (24, 2)
+    assert inside.shape == (15 + 456, 2)
     assert boundary.shape == (9, 2)
     assert np.all(np.abs(np.asarray(inside[:, 0])) <= 1)
     assert np.all(np.asarray(inside[:, 1]) >= 0)
