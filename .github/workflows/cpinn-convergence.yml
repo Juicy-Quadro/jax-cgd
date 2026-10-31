@@ -1,0 +1,71 @@
+name: RC CPINN convergence attempt
+on:
+  push:
+    branches: [experiments/cpinn-rc-convergence]
+    paths: [.github/workflows/cpinn-convergence.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Fetch original Burgers reference data
+        run: |
+          mkdir -p reference
+          curl -fL --retry 3 https://raw.githubusercontent.com/comp-physics/CPINN/main/Burger/burgers_shock.mat -o reference/burgers_shock.mat
+          sha256sum reference/burgers_shock.mat | tee reference/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpinn-original-reference
+          path: reference/
+  train:
+    needs: reference
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [poisson-schur, poisson-block, burgers-schur, poisson-adam]
+    env:
+      JAX_ENABLE_X64: '1'
+      JAX_PLATFORMS: cpu
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cpinn-original-reference
+          path: reference
+      - name: Install frozen CPU reference dependencies
+        run: |
+          python -m pip install -e '.[examples,test]' 'jax[cpu]==0.10.2' 'flax==0.12.8'
+          mkdir -p results
+          python -m pip freeze > results/environment.txt
+          git rev-parse HEAD > results/experiment-head.txt
+          git diff df67eb6c6309014b6c2752cfadd59a7483c181b2 -- jax_cgd examples > results/package-diff.txt
+          test ! -s results/package-diff.txt
+      - name: Physical residual and exact derivative checks
+        run: python -m pytest -q tests/test_cpinn_flax.py tests/test_mlp_jets.py
+      - name: Bounded convergence trial (not claimed full reproduction)
+        shell: bash
+        run: |
+          case '${{ matrix.case }}' in
+            poisson-schur) ARGS='--problem poisson --formulation schur --steps 48000' ;;
+            poisson-block) ARGS='--problem poisson --formulation block --steps 48000' ;;
+            burgers-schur) ARGS='--problem burgers --formulation schur --steps 28000 --reference-mat reference/burgers_shock.mat' ;;
+            poisson-adam) ARGS='--problem poisson --mode adam --steps 48000' ;;
+          esac
+          timeout --signal=INT --kill-after=20 900 python -m experiments.reproduction_trial $ARGS --seconds 600 --chunk 10 --output results/${{ matrix.case }} 2>&1 | tee results/training.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rc-convergence-${{ matrix.case }}
+          path: results/
+          if-no-files-found: error
