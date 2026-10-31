@@ -119,7 +119,9 @@ def _gmres(A, b, x0, tol, atol, maxiter, restart):
             return V, R, cs, sn, g, j+1, happy | invalid
 
         V, R, _, _, g, k, stopped = lax.while_loop(inner_cond, inner, state)
-        coeff = solve_triangular(R, g[:m], lower=False)
+        # Only the completed k-dimensional Krylov space enters the update.
+        rhs_small = jnp.where(jnp.arange(m) < k, g[:m], 0.)
+        coeff = solve_triangular(R, rhs_small, lower=False)
         new_x = x + V[:, :m] @ coeff
         new_r = b - A(new_x)
         norm = jnp.linalg.norm(new_r)
