@@ -1,0 +1,47 @@
+name: Flax CPINN benchmark smoke tests
+
+on:
+  push:
+    branches: ["feat/flax-cpinn-benchmarks"]
+  pull_request:
+    paths:
+      - "examples/**"
+      - "requirements-examples.txt"
+      - "tests/test_cpinn_flax.py"
+      - ".github/workflows/cpinn-benchmarks.yml"
+      - "jax_cgd/**"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JAX_ENABLE_X64: "1"
+      XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package, Flax and training dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . -r requirements-examples.txt
+      - name: Verify paper PDE, data and differentiable Flax networks
+        run: python -m pytest -q tests/test_cpinn_flax.py
+      - name: Poisson PINN Adam smoke
+        run: python examples/poisson.py --smoke --mode adam
+      - name: Poisson CPINN ACGD smoke
+        run: python examples/poisson.py --smoke --mode acgd --solver cg
+      - name: Burgers CPINN ACGD smoke
+        run: python examples/burgers.py --smoke --mode acgd --solver cg
+      - name: Burgers reference-grid relative L2 smoke
+        run: |
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/comp-physics/CPINN/main/Burger/burgers_shock.mat -o /tmp/burgers_shock.mat
+          python examples/burgers.py --smoke --mode acgd --solver cg --reference-mat /tmp/burgers_shock.mat
+      - name: Small Poisson PINN Adam training curve
+        run: |
+          python examples/poisson.py --mode adam --steps 20 --n-pde 12 --n-bc 6 --width 6 --layers 1 --grid 16 --report-every 5
+      - name: Small Poisson CPINN ACGD training curve
+        run: |
+          python examples/poisson.py --mode acgd --solver cg --steps 20 --n-pde 12 --n-bc 6 --width 6 --layers 1 --grid 16 --report-every 5 --maxiter 12
