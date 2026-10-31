@@ -1,0 +1,139 @@
+{
+  "audited_package": "jax-cgd==2.0.0rc1",
+  "package_source_sha": "df67eb6c6309014b6c2752cfadd59a7483c181b2",
+  "official_cpinn_sha": "ef0d6a4504e5a5fd69e3d0583f4c821b33436c2d",
+  "reference_optimizer": "CGDs==0.4.5",
+  "local_environment": {
+    "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+    "jax": "0.9.0.1",
+    "torch": "2.10.0+cpu",
+    "device": "[CpuDevice(id=0)]"
+  },
+  "core_20_steps": {
+    "steps": 20,
+    "max_torch_dense": 4.163336342344337e-17,
+    "max_moment_error": 1.3010426069826053e-18,
+    "max_schur_error": 8.838416110101832e-16,
+    "max_block_error": 8.326672684688674e-17
+  },
+  "pde_parity": [
+    {
+      "problem": "burgers",
+      "n_pde": 488,
+      "n_bc": 8,
+      "width": 60,
+      "layers": 8,
+      "steps": 5,
+      "tol": 1e-10,
+      "reference_unique_P": 25861,
+      "reference_unique_D": 3962,
+      "max_block_param_error": 7.067429974583206e-12,
+      "max_schur_jet_param_error": 7.525666756436067e-10
+    },
+    {
+      "problem": "poisson",
+      "n_pde": 32,
+      "n_bc": 16,
+      "width": 50,
+      "layers": 3,
+      "steps": 5,
+      "tol": 1e-10,
+      "reference_unique_P": 5301,
+      "reference_unique_D": 7902,
+      "max_block_param_error": 4.147793219568835e-13,
+      "max_schur_jet_param_error": 4.034181322332131e-11
+    },
+    {
+      "problem": "poisson",
+      "n_pde": 5000,
+      "n_bc": 200,
+      "width": 50,
+      "layers": 3,
+      "steps": 5,
+      "tol": 1e-10,
+      "reference_unique_P": 5301,
+      "reference_unique_D": 7902,
+      "max_block_param_error": 8.913009219568835e-13,
+      "max_schur_jet_param_error": 1.4406503767716572e-10
+    }
+  ],
+  "protocol_ablations": {
+    "data": {
+      "poisson_same_points": false,
+      "poisson_same_boundary": false,
+      "burgers_reference_time_max": 0.99,
+      "burgers_current_time_max": 1.0,
+      "burgers_reference_P_time_scale": 2.0202020202020203,
+      "burgers_current_P_time_scale": 2.0,
+      "burgers_reference_D_unique_params": 3962,
+      "burgers_current_D_unique_params": 25922,
+      "poisson_ref_D_nonzero_bias": 202,
+      "poisson_current_D_nonzero_bias": 0,
+      "burgers_ref_D_nonzero_bias": 122,
+      "burgers_current_D_nonzero_bias": 0
+    },
+    "ablations": {
+      "note": "Burgers small audit fixture, width6 depth3, same exact starting arrays; one change at a time.",
+      "sign_only_P_update_difference": {
+        "max_abs": 0.002004730980765118,
+        "relative_l2": 1.877737333093384
+      },
+      "untie_only_initial_D_forward": {
+        "max_abs": 0.0,
+        "relative_l2": 0.0
+      },
+      "untie_only_initial_game_abs_difference": 0.0,
+      "untie_only_P_update_difference": {
+        "max_abs": 2.8468704707851344e-05,
+        "relative_l2": 0.002834371744480913
+      },
+      "normalize_D_only_forward_difference": {
+        "max_abs": 0.06747006692302326,
+        "relative_l2": 0.09977169592537931
+      },
+      "normalize_P_to_1_instead_of_dot99": {
+        "max_abs": 0.012330505390265423,
+        "relative_l2": 0.008629109905700929
+      },
+      "PDE_output_flip_game_abs_difference": 0.0
+    }
+  },
+  "reference_gmres_quirks": {
+    "ordinary": {
+      "reported_k": 0,
+      "executed_arnoldi": 1,
+      "solution_error": 0.0
+    },
+    "tiny_rhs": {
+      "reported_k": 0,
+      "executed_arnoldi": 0,
+      "returned_b": true,
+      "true_relative_residual": 1.0
+    }
+  },
+  "late_residual": {
+    "source": "previous trial saved step 620, same current-example data",
+    "rows": [
+      {
+        "tol": 1e-07,
+        "k": 73,
+        "reported_schur_relative_residual": 6.271873856842159e-08,
+        "true_fullblock_relative_residual": 8.920442380112793e-08,
+        "ex_min": 0.18726655979546605,
+        "ex_max": 127.04846320613744,
+        "converged": true
+      },
+      {
+        "tol": 1e-12,
+        "k": 106,
+        "reported_schur_relative_residual": 4.095340810854696e-13,
+        "true_fullblock_relative_residual": 6.591795368626887e-13,
+        "ex_min": 0.18726655979546605,
+        "ex_max": 127.04846320613744,
+        "converged": true
+      }
+    ],
+    "update_abs_difference": 8.308949361879314e-11,
+    "update_relative_difference": 6.98168696545613e-08
+  }
+}
