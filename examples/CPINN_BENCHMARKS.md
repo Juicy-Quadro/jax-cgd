@@ -34,8 +34,10 @@ python examples/poisson.py --mode adam --steps 30000
 For a closer algorithmic match to the authors' GMRES-based ACGD:
 `--solver gmres --tol 1e-7`. The optimized JAX-CGD uses an SPD CG
 variant by default; this is a **solver difference** from the paper.
-The adaptive learning-rate implementation is also not the identical
-PyTorch GACGD algorithm, and Flax has different initialization.
+The adaptive learning rate now uses per-parameter RMS scaling as in reference
+GACGD, but this implementation solves a symmetrized Schur complement instead
+of the original full-block general-sum GMRES system. Flax also has different
+initialization and the RNG/sampling sequence differs.
 Do not treat identical benchmark equations as a quantitative
 replication of the paper's final errors.
 
