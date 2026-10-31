@@ -70,7 +70,7 @@ def sample_poisson(n_pde=5000, n_bc=50, seed=123):
 def sample_burgers(n_pde=10000, n_bc=100, seed=123):
     """Original PINNs/CPINNs: N_u=100 selected initial/boundary points.
 
-    N_f=10000 LHS collocation points, plus all selected initial/boundary points.
+    N_f=10000 LHS collocation points, plus the full 456-point IC/BC pool.
     """
     rng = np.random.default_rng(seed)
     x0 = np.linspace(-1.0, 1.0, 256)
@@ -85,7 +85,7 @@ def sample_burgers(n_pde=10000, n_bc=100, seed=123):
     boundary = candidates[idx]
     interior = qmc.scale(qmc.LatinHypercube(2, seed=seed).random(n_pde),
                          [-1, 0], [1, 1])
-    interior = np.concatenate([interior, boundary], axis=0)
+    interior = np.concatenate([interior, candidates], axis=0)
     return (jnp.asarray(interior, dtype=jnp.float64),
             jnp.asarray(boundary, dtype=jnp.float64))
 
@@ -155,12 +155,14 @@ def create_problem(problem, n_pde, n_bc, width, layers, seed):
         return dual.apply(unflatten_dict(p), locations)
 
     target_bc = exact_boundary(boundary)
+    # Match each reference implementation's discriminator-output ordering.
+    pde_idx, bc_idx = (1, 0) if problem == "burgers" else (0, 1)
 
     def game(p, d):
         res = residual(pred, p, inside)
         boundary_error = pred(p, boundary)[:, 0] - target_bc
-        return (jnp.mean(disc(d, inside)[:, 0] * res)
-                + jnp.mean(disc(d, boundary)[:, 1] * boundary_error))
+        return (jnp.mean(disc(d, inside)[:, pde_idx] * res)
+                + jnp.mean(disc(d, boundary)[:, bc_idx] * boundary_error))
 
     def pinn_loss(p):
         res = residual(pred, p, inside)
