@@ -68,13 +68,19 @@ accepted, but their counts and cumulative failure count are -1 (unknown).
 Fields: `outer_steps`, `krylov_iterations`, `krylov_iterations_total`, `matvecs`,
 `matvecs_total`, `restart_cycles`, `residual_norm`, `relative_residual`,
 `converged`, `breakdown`, `failed_solves_total`, `counts_available`,
-`mixed_products_total`, `paper_proxy_total`, `paper_formula_applicable`,
+`mixed_products_total`, `mixed_products_nominal_total`, `mixed_products_reused_total`,
+`paper_proxy_total`, `paper_formula_applicable`,
 `factorized_game`. A zero RHS uses absolute residual in `relative_residual`.
 
 For Schur solves each matrix product uses two mixed-Hessian maps; RHS and
 reconstruction add two maps per optimizer step:
-`mixed_products_total = 2*matvecs_total + 2*outer_steps`.
-For full-block solves it is `2*matvecs_total`. These are logical map calls;
+`mixed_products_nominal_total = 2*matvecs_total + 2*outer_steps`.
+The optimized built-in Schur-CG path reuses one Hyx product between final
+true-residual verification and dual reconstruction for each nonzero-iteration
+solve. Thus `mixed_products_total = mixed_products_nominal_total -
+mixed_products_reused_total`. This does NOT omit the final true-residual check.
+Custom CG subclasses are not bypassed. For full-block solves the count remains
+`2*matvecs_total`. These are logical map calls;
 a `vmap` batch may physically execute masked work for converged systems.
 
 The default remains the SPD Schur solve. A **Schur iteration is not a
@@ -104,7 +110,11 @@ of the linear solver is supported, not a claim of full optimizer meta-gradients.
 ## Flax example and reproducible benchmarks
 
 The original examples stay available as controls. The new runner uses the
-same points, models, initialization and loss, with an exact optional factorization:
+same points, models, initialization and loss, with exact factorization and a
+scalar-tanh Flax spatial-derivative path. `--autodiff` retains the previous
+nested-autodiff derivatives; `--generic` disables both optimizations. Adam
+continues to use its reference derivative path; no Adam speed comparison is
+claimed here. See [CPU optimization](CPU_OPTIMIZATION.md).
 
 ```bash
 python -m examples.cpinn_counted --problem poisson --smoke

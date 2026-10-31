@@ -1,3 +1,8 @@
+> Historical notes for PR #1, not the current feature list. Counted solvers and
+> Flax benchmarks were subsequently added. Current behavior is documented in
+> [WORK_ACCOUNTING](docs/WORK_ACCOUNTING.md) and
+> [CPU_OPTIMIZATION](docs/CPU_OPTIMIZATION.md).
+
 # Matrix-free CGD/ACGD optimization patch
 
 This change is based on the repository main branch at
