@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-01",
+  "package": "jax-cgd==2.0.0rc1",
+  "package_source_sha": "df67eb6c6309014b6c2752cfadd59a7483c181b2",
+  "official_cpinn_sha": "ef0d6a4504e5a5fd69e3d0583f4c821b33436c2d",
+  "environment": {"python": "3.12.15", "jax": "0.10.2", "flax": "0.12.8", "torch": "2.10.0+cpu", "CGDs": "0.4.5", "pyDOE": "0.3.8", "device": "CPU", "dtype": "float64"},
+  "official_full_lengths_completed": false,
+  "package_sources_changed": false,
+  "main_merged": false,
+  "pypi_published_by_this_experiment": false,
+  "poisson_paired": {
+    "pde_points": 5000, "boundary_points": 200, "steps": 200,
+    "jax_l2": 0.029105317427454622,
+    "torch_l2": 0.029105317427558144,
+    "jax_actual_arnoldi": 4876, "torch_actual_arnoldi": 4876,
+    "torch_historical_index_sum": 4676,
+    "max_recorded_parameter_difference": 9.789730831544219e-11,
+    "max_recorded_l2_difference": 2.9499597209436956e-12,
+    "failed_solves": 0, "rejected_updates": 0,
+    "stop_reason": "requested_steps"
+  },
+  "burgers_paired": {
+    "pde_points": 10456, "supervised_points": 100, "steps": 58,
+    "jax_l2": 0.5138471751912103,
+    "torch_l2": 0.5138471751909935,
+    "jax_actual_arnoldi": 802, "torch_actual_arnoldi": 802,
+    "torch_historical_index_sum": 744,
+    "max_recorded_parameter_difference": 1.650055092561331e-12,
+    "max_recorded_l2_difference": 4.67847982577041e-13,
+    "pde_mse": 1.335936833174986,
+    "bc_mse": 0.09600707712381386,
+    "failed_solves": 0, "rejected_updates": 0,
+    "stop_reason": "wall_budget",
+    "reference_initial_rng_note": "Unspecified upstream discriminator starting RNG fixed123 here; actual tensors shared; historical author initialization not claimed recovered."
+  },
+  "poisson_extended": {
+    "requested_official_steps": 34001, "completed_steps": 508,
+    "reference_paired_prefix_only": 20,
+    "jax_l2": 0.001626800226223883,
+    "pde_mse": 3.693714859610002e-5,
+    "bc_mse": 3.3369208517068936e-6,
+    "actual_arnoldi": 23641,
+    "failed_solves": 0, "rejected_updates": 0,
+    "elapsed_s": 1000.707912997,
+    "stop_reason": "wall_budget"
+  },
+  "native_controls": {
+    "native_block_cold": {
+      "steps": 200, "l2": 0.029105317427456794, "actual_krylov": 4876,
+      "failed_solves": 0,
+      "final_P_max_abs_diff_from_torch": 2.0363960517855162e-11,
+      "final_D_max_abs_diff_from_torch": 9.78504499649091e-11
+    },
+    "native_schur_warm_jet": {
+      "steps": 200, "l2": 0.030331481214157748, "actual_krylov": 3077,
+      "failed_solves": 0,
+      "l2_relative_increase_percent": 4.21285144768295,
+      "final_P_max_abs_diff_from_torch": 0.009939853295012499,
+      "final_D_max_abs_diff_from_torch": 0.10672375188550211,
+      "final_P_relative_diff": 0.0065137392953347854,
+      "final_D_relative_diff": 0.03093236819458903
+    }
+  },
+  "same_state_diagnostic": {
+    "state_step": 200, "all_candidates_cold": true,
+    "block_1e7": {"reported_residual": 9.162074754282168e-8, "full_block_residual": 9.162074755744496e-8},
+    "schur_generic_1e7": {"reported_residual": 4.211758293247942e-8, "full_block_residual": 1.7692131309686163e-7},
+    "schur_jet_1e7": {"reported_residual": 4.173833795944432e-8, "full_block_residual": 1.7679093418602856e-7},
+    "block_1e12_full_block_residual": 6.936937492002262e-13,
+    "schur_jet_1e12_full_block_residual": 7.449651818366338e-13,
+    "tight_schur_vs_block_max_increment_difference": 1.426636586643326e-14,
+    "tight_schur_vs_block_relative_increment_difference": 9.238092712302498e-13,
+    "jet_vs_nested_max_abs": {"gx": 8.326672684688674e-17, "gy": 2.6481638062958446e-17, "hxy": 1.2490009027033011e-15, "hyx": 2.6645352591003757e-15},
+    "limitation": "Identifies stopping-norm mismatch; not a full causal decomposition of long-trajectory drift."
+  },
+  "verification": {
+    "released_regression_tests_passed": 90,
+    "historical_adapter_tests_passed": 9,
+    "numpy_only_final_l2_replay_max_discrepancy": 2e-16,
+    "pde_and_boundary_mse_replayed": true,
+    "poisson_fixtures_elementwise_identical": true,
+    "historical_path_workspace_retries": 0,
+    "checkpoint_maxima_sampling": "0,1,every10,and final; not every intermediate step",
+    "all_four_workflows_completed_successfully": true
+  },
+  "artifacts": [
+    {"run": 41286351085, "artifact": 13075467990, "name": "official-code-poisson-long", "sha256": "7f2f7a56bed40f6a73d9d9a9e42a14b652fe69070b1fe57b516e9ef841789f82"},
+    {"run": 41286351085, "artifact": 13075483022, "name": "official-code-burgers-paired", "sha256": "4e1dc2736d2f4625952db8217d0d515d711bf5de10a1a8023c5826c58b147fd5"},
+    {"run": 41286730023, "artifact": 13076195541, "name": "official-code-poisson-paired", "sha256": "4bb0195ab9ccb19f022b9579fec29a08474712bc6be547544685642912162c47"},
+    {"run": 41286862640, "artifact": 13075702909, "name": "official-code-native-solvers", "sha256": "268975a62967e7f1e025f56623c49b1a6d2374fb4f814d000452aeb4efb66f15"},
+    {"run": 41288207593, "artifact": 13075819900, "name": "official-code-state-diagnostic", "sha256": "8d80aa1060236407476563aacc4346aa0f688aefd7bae92483300cd21b7e5116"}
+  ],
+  "conclusions": [
+    "Core/full-block correctness supported by independent full-data short-to-medium trajectories.",
+    "Published native block solver also matches; evidence is not limited to a custom adapter.",
+    "Optimized Schur/warm/jet path is not a strictly aligned substitute at the same numerical rtol.",
+    "Official full training length and paper final accuracy remain unverified. No GPU or equal-work Adam claim."
+  ]
+}
