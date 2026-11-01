@@ -1,0 +1,29 @@
+name: Freeze CGD 2019 validation sources
+on:
+  push:
+    branches: [experiments/cgd2019-validation]
+    paths: [.github/workflows/cgd2019-sources.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch immutable reference sources and published RC
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p sources
+          curl -fL --retry 3 https://codeload.github.com/f-t-s/CGD/zip/766fa08dc29f6e5f3170c781139fe44c42a16267 -o sources/author-julia.zip
+          curl -fL --retry 3 https://codeload.github.com/julienroyd/competitive_gradient_descent/zip/dda97e7c38a2418fc428dcffb32f83012daf81d1 -o sources/independent-pytorch.zip
+          python -m pip download --no-deps 'jax-cgd==2.0.0rc1' --dest sources
+          sha256sum sources/* > sources/SHA256SUMS
+          git rev-parse HEAD > sources/experiment-head.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cgd2019-frozen-sources
+          path: sources/
+          if-no-files-found: error
