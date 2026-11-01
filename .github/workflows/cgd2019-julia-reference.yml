@@ -1,0 +1,39 @@
+name: CGD 2019 original Julia covariance reference
+on:
+  push:
+    branches: [experiments/cgd2019-validation]
+    paths: [.github/workflows/cgd2019-julia-reference.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      JULIA_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - name: Install original solver dependency versions
+        run: |
+          mkdir -p results vendor
+          git clone https://github.com/f-t-s/CGD.git vendor/CGD
+          git -C vendor/CGD checkout 766fa08dc29f6e5f3170c781139fe44c42a16267
+          julia --project=reference_env -e 'using Pkg; Pkg.add([PackageSpec(name="LinearMaps", version="2.3.0"),PackageSpec(name="IterativeSolvers",version="0.8.1")]); Pkg.status()'
+      - name: Execute original optimizer bodies on full-size covariance problems
+        shell: bash
+        run: |
+          set -o pipefail
+          julia --project=reference_env experiments/cgd2019_reference.jl 2>&1 | tee results/julia.log
+          cp reference_env/Manifest.toml results/julia-manifest.toml
+          git rev-parse HEAD > results/experiment-head.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cgd2019-julia-reference
+          path: results/
+          if-no-files-found: error
